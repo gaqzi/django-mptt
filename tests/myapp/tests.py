@@ -23,7 +23,7 @@ from mptt.exceptions import CantDisableUpdates, InvalidMove
 from mptt.forms import MPTTAdminForm
 from mptt.models import MPTTModel
 from mptt.templatetags.mptt_tags import cache_tree_children
-from myapp.models import Category, Genre, CustomPKName, SingleProxyModel, DoubleProxyModel, ConcreteModel, OrderedInsertion, AutoNowDateFieldModel
+from myapp.models import Category, Genre, CustomPKName, SingleProxyModel, DoubleProxyModel, ConcreteModel, OrderedInsertion, AutoNowDateFieldModel, Folder
 
 extra_queries_per_update = 0
 if django.VERSION < (1, 6):
@@ -1171,3 +1171,139 @@ class TestForms(TreeTestCase):
         c = Category.objects.get(name='Nintendo Wii')
         CategoryForm = modelform_factory(Category, form=MPTTAdminForm)
         CategoryForm(instance=c)
+
+
+class ModelMoveToOrderInsertionBy(TestCase):
+    '''
+    Directory structure is like this:
+
+    + = Folder
+    - = Document
+    | = Subfolder
+
+    Coal Pte Ltd
+    |+ Employee information
+    ||+ Lunch menu
+    |+ Payroll
+    ||+ Salaries
+    ||+ Contracts
+    |+ Sales leads
+    |+ Accounts Receivable
+    ||+ Unpaid
+    |||+ Lawyers contacted
+    '''
+
+    def setUp(self):
+        self.folder = {}
+        self.folder['Coal Pte Ltd'] = Folder.objects.create(
+            name='Coal Pte Ltd',
+        )
+        self.folder['Employee information'] = Folder.objects.create(
+            name='Employee information',
+            parent=self.folder['Coal Pte Ltd'],
+        )
+        self.folder['Lunch menu'] = Folder.objects.create(
+            name='Lunch menu',
+            parent=self.folder['Employee information'],
+        )
+        self.folder['Payroll'] = Folder.objects.create(
+            name='Payroll',
+            parent=self.folder['Coal Pte Ltd'],
+        )
+        self.folder['Salaries'] = Folder.objects.create(
+            name='Salaries',
+            parent=self.folder['Payroll'],
+        )
+        self.folder['Contracts'] = Folder.objects.create(
+            name='Contracts',
+            parent=self.folder['Payroll'],
+        )
+        self.folder['Sales leads'] = Folder.objects.create(
+            name='Sales leads',
+            parent=self.folder['Coal Pte Ltd'],
+        )
+        self.folder['Accounts Receivable'] = Folder.objects.create(
+            name='Accounts Receivable',
+            parent=self.folder['Coal Pte Ltd'],
+        )
+        self.folder['Unpaid'] = Folder.objects.create(
+            name='Unpaid',
+            parent=self.folder['Accounts Receivable'],
+        )
+        self.folder['Lawyers contacted'] = Folder.objects.create(
+            name='Lawyers contacted',
+            parent=self.folder['Unpaid'],
+        )
+        self.folder['Angry Aardvark'] = Folder.objects.create(
+            name='Angry Aardvark',
+            parent=self.folder['Unpaid'],
+        )
+        self.folder['Zleepy Zeebra'] = Folder.objects.create(
+            name='Zleepy Zeebra',
+            parent=self.folder['Unpaid'],
+        )
+
+    def test_lawyers_contacted_should_have_ancestors(self):
+        self.assertEqual(
+            self.folder['Lawyers contacted'].get_ancestors().count(), 3
+        )
+
+    def test_move_lawyers_contacted_to_salaries(self):
+        '''When a node has been moved into another node it should have
+        the parent node as an ancestor.
+        '''
+        lawyers = self.folder['Lawyers contacted']
+        salaries = self.folder['Salaries']
+        lawyers.move_to(salaries)
+
+        self.assertEqual(lawyers.parent, salaries)
+        # When I found this it failed with this test in my project,
+        # there it returned the root node as the only ancester
+        self.assertEqual(lawyers.get_ancestors().count(), 3)
+        lawyers.get_ancestors().get(pk=salaries.pk)
+
+    def test_move_aardvark_to_salaries(self):
+        '''Try and see if there's any difference if the items are
+        named alphabetically before the folder moved to
+        '''
+        aardvark = self.folder['Angry Aardvark']
+        salaries = self.folder['Salaries']
+        aardvark.move_to(salaries)
+
+        self.assertEqual(aardvark.parent, salaries)
+        self.assertEqual(aardvark.get_ancestors().count(), 3)
+        aardvark.get_ancestors().get(pk=salaries.pk)
+
+    def test_move_zeebra_to_salaries(self):
+        '''Try and see if there's any difference if the items are
+        named alphabetically after the folder moved to
+        '''
+        zeebra = self.folder['Zleepy Zeebra']
+        salaries = self.folder['Salaries']
+        zeebra.move_to(salaries)
+
+        self.assertEqual(zeebra.parent, salaries)
+        self.assertEqual(zeebra.get_ancestors().count(), 3)
+        zeebra.get_ancestors().get(pk=salaries.pk)
+
+    def test_move_unpaid_to_salaries(self):
+        ''' The weirdest exception raised:
+        InvalidMove: A node may not be made a child of any of its descendants.
+        '''
+        unpaid = self.folder['Unpaid']
+        salaries = self.folder['Salaries']
+        unpaid.move_to(salaries)
+
+        self.assertEqual(unpaid.parent, salaries)
+        self.assertEqual(unpaid.get_ancestors().count(), 3)
+        unpaid.get_ancestors().get(pk=salaries.pk)
+
+    def test_move_salaries_to_root(self):
+        # This one is passing
+        salaries = self.folder['Salaries']
+        coal = self.folder['Coal Pte Ltd']
+        salaries.move_to(coal)
+
+        self.assertEqual(salaries.parent, coal)
+        self.assertEqual(salaries.get_ancestors().count(), 1)
+        unpaid.get_ancestors().get(pk=salaries.pk)

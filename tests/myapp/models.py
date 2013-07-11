@@ -187,3 +187,16 @@ class AutoNowDateFieldModel(MPTTModel):
 # test registering of remote model
 TreeForeignKey(Group, blank=True, null=True).contribute_to_class(Group, 'parent')
 mptt.register(Group, order_insertion_by=('name',))
+
+
+class Folder(MPTTModel):
+    name = models.CharField(max_length=100)
+    parent = TreeForeignKey('self', blank=True, null=True,
+                            related_name='children')
+
+    # The magic two lines that break everything
+    class MPTTMeta:
+        order_insertion_by = ('name',)
+
+    def __unicode__(self):
+        return self.name
