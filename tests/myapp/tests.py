@@ -1254,7 +1254,8 @@ class ModelMoveToOrderInsertionBy(TestCase):
         '''
         lawyers = self.folder['Lawyers contacted']
         salaries = self.folder['Salaries']
-        lawyers.move_to(salaries)
+        lawyers.parent = salaries
+        lawyers.save()
 
         self.assertEqual(lawyers.parent, salaries)
         # When I found this it failed with this test in my project,
@@ -1268,7 +1269,8 @@ class ModelMoveToOrderInsertionBy(TestCase):
         '''
         aardvark = self.folder['Angry Aardvark']
         salaries = self.folder['Salaries']
-        aardvark.move_to(salaries)
+        aardvark.parent = salaries
+        aardvark.save()
 
         self.assertEqual(aardvark.parent, salaries)
         self.assertEqual(aardvark.get_ancestors().count(), 3)
@@ -1280,7 +1282,8 @@ class ModelMoveToOrderInsertionBy(TestCase):
         '''
         zeebra = self.folder['Zleepy Zeebra']
         salaries = self.folder['Salaries']
-        zeebra.move_to(salaries)
+        zeebra.parent = salaries
+        zeebra.save()
 
         self.assertEqual(zeebra.parent, salaries)
         self.assertEqual(zeebra.get_ancestors().count(), 3)
@@ -1292,7 +1295,8 @@ class ModelMoveToOrderInsertionBy(TestCase):
         '''
         unpaid = self.folder['Unpaid']
         salaries = self.folder['Salaries']
-        unpaid.move_to(salaries)
+        unpaid.parent = salaries
+        unpaid.save()
 
         self.assertEqual(unpaid.parent, salaries)
         self.assertEqual(unpaid.get_ancestors().count(), 3)
@@ -1302,8 +1306,9 @@ class ModelMoveToOrderInsertionBy(TestCase):
         # This one is passing
         salaries = self.folder['Salaries']
         coal = self.folder['Coal Pte Ltd']
-        salaries.move_to(coal)
+        salaries.parent = coal
+        salaries.save()
 
         self.assertEqual(salaries.parent, coal)
         self.assertEqual(salaries.get_ancestors().count(), 1)
-        unpaid.get_ancestors().get(pk=salaries.pk)
+        salaries.get_ancestors().get(pk=coal.pk)
