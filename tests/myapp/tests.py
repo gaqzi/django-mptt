@@ -1173,6 +1173,19 @@ class Signals(TestCase):
         self.wii = Category.objects.get(pk=2)
         self.ps3 = Category.objects.get(pk=8)
 
+    def test_signal_should_not_be_sent_when_parent_hasnt_changed(self):
+        with mock_signal_receiver(self.signal, sender=Category) as receiver:
+            self.wii.name = 'Woo'
+            self.wii.save()
+
+            self.assertEqual(receiver.call_count, 0)
+
+    def test_signal_should_not_be_sent_when_model_created(self):
+        with mock_signal_receiver(self.signal, sender=Category) as receiver:
+            Category.objects.create(name='Descriptive name')
+
+            self.assertEqual(receiver.call_count, 0)
+
     def test_move_by_using_move_to_should_send_signal(self):
         with mock_signal_receiver(self.signal, sender=Category) as receiver:
             self.wii.move_to(self.ps3)
